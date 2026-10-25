@@ -1,0 +1,261 @@
+# Lab 7 MERN cheat sheet
+
+Replace `Surname` with your last name. Work inside the project folder the whole time.
+
+## 1. Atlas (website)
+1. Create a free account and an **M0** cluster.
+2. **Database Access** → add a user (letters and numbers only in the password is easiest).
+3. **Network Access** → Add IP → `0.0.0.0/0`.
+4. **Clusters → Connect → Drivers → Node.js** → copy the connection string.
+5. **Browse Collections** → create database `studentDB` with collection `students` (name, studentNumber, course) and collection `faculties` (name, empNumber, department). Add at least 5 documents each.
+
+## 2. Terminal: create the project
+```bash
+npm create vite@latest Surname_ATLAS -- --template react
+cd Surname_ATLAS
+npm install
+npm install react-router-dom
+npm install dotenv express cors mongoose
+npm install tailwindcss @tailwindcss/vite
+```
+
+## 3. Tailwind setup
+**vite.config.js**
+```js
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+import tailwindcss from '@tailwindcss/vite'
+
+export default defineConfig({
+  plugins: [react(), tailwindcss()],
+})
+```
+**src/index.css** (only this line)
+```css
+@import "tailwindcss";
+```
+Make sure `src/main.jsx` has `import './index.css'`. Restart `npm run dev` after editing the config.
+
+## 4. Folder structure
+```
+Surname_ATLAS/
+├── backend/
+│   ├── models/ (students.js, faculty.js)
+│   ├── .env
+│   └── server.js
+└── src/
+    ├── components/ (DataTable.jsx, Navbar.jsx)
+    └── pages/ (Home.jsx, StudentList.jsx, FacultyList.jsx)
+```
+Names are case-sensitive: `Navbar.jsx`, not `NavBar.jsx`.
+
+## 5. Backend files
+
+**backend/.env** (one line, no quotes, no spaces, no `<>`, and it must end with `/studentDB`)
+```
+MONGO_URI=mongodb+srv://USERNAME:PASSWORD@cluster0.xxxxx.mongodb.net/studentDB
+```
+
+**backend/models/students.js**
+```js
+import mongoose from "mongoose";
+
+const studentSchema = new mongoose.Schema({
+  name: String,
+  studentNumber: String,
+  course: String
+});
+
+const Student = mongoose.model("Student", studentSchema);
+export default Student;
+```
+
+**backend/models/faculty.js**
+```js
+import mongoose from "mongoose";
+
+const facultySchema = new mongoose.Schema({
+  name: String,
+  empNumber: String,
+  department: String
+});
+
+const Faculty = mongoose.model("Faculty", facultySchema);
+export default Faculty;
+```
+
+**backend/server.js**
+```js
+import dns from "dns";
+import dotenv from "dotenv";
+import path from "path";
+import { fileURLToPath } from "url";
+import express from "express";
+import mongoose from "mongoose";
+import cors from "cors";
+import Student from "./models/students.js";
+import Faculty from "./models/faculty.js";
+
+// Fixes "querySrv ECONNREFUSED" (DNS problem)
+dns.setServers(["8.8.8.8", "1.1.1.1"]);
+
+// Loads backend/.env even when running from the project root
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.join(__dirname, ".env") });
+
+const app = express();
+
+mongoose.connect(process.env.MONGO_URI)
+  .then(() => console.log("MongoDB Connected"))
+  .catch(error => console.log(error));
+
+app.use(cors());
+
+app.get("/", (req, res) => {
+  res.send("Hello from Express!");
+});
+
+app.get("/api/students", async (req, res) => {
+  const students = await Student.find();
+  res.json(students);
+});
+
+app.get("/api/faculty", async (req, res) => {
+  const faculty = await Faculty.find();
+  res.json(faculty);
+});
+
+app.listen(5000, () => {
+  console.log("Server running on port 5000");
+});
+
+export default app;
+```
+
+## 6. Frontend files
+
+**src/App.jsx**
+```jsx
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import Navbar from "./components/Navbar";
+import Home from "./pages/Home";
+import StudentList from "./pages/StudentList";
+import FacultyList from "./pages/FacultyList";
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <Navbar />
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/students" element={<StudentList />} />
+        <Route path="/faculties" element={<FacultyList />} />
+      </Routes>
+    </BrowserRouter>
+  );
+}
+```
+
+**src/components/DataTable.jsx**
+```jsx
+export default function DataTable({ data, columns }) {
+  return (
+    <table className="w-full text-left">
+      <thead>
+        <tr className="border-b border-slate-700 text-sm text-slate-400">
+          {columns.map((column) => (
+            <th key={column.key} className="px-4 py-4 font-medium">
+              {column.label}
+            </th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {data.map((item) => (
+          <tr key={item._id} className="border-b border-slate-800 transition-colors duration-200 hover:bg-slate-800/60">
+            {columns.map((column) => (
+              <td key={column.key} className="px-4 py-4">
+                {item[column.key]}
+              </td>
+            ))}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+```
+
+**src/components/Navbar.jsx**
+```jsx
+import { Link } from "react-router-dom";
+
+export default function Navbar() {
+  return (
+    <nav className="flex items-center justify-between border-b border-slate-800 bg-slate-950 px-6 py-4 text-white">
+      <Link to="/" className="text-lg font-bold text-red-400">Student Portal</Link>
+      <div className="flex gap-6 text-slate-300">
+        <Link to="/" className="hover:text-red-300">Home</Link>
+        <Link to="/students" className="hover:text-red-300">Students</Link>
+        <Link to="/faculties" className="hover:text-red-300">Faculty</Link>
+      </div>
+    </nav>
+  );
+}
+```
+
+**src/pages/Home.jsx** and **src/pages/StudentList.jsx**: copy them from the lab sheet (steps 12 and 16). When pasting from the PDF, fix any class names that got split across lines. The known one is `bg-clip-text` (written as `bg-cliptext` in the PDF).
+
+**src/pages/FacultyList.jsx**: same as StudentList with these differences:
+```jsx
+const [faculty, setFaculty] = useState([]);
+
+useEffect(() => {
+  fetch("http://localhost:5000/api/faculty")
+    .then(response => response.json())
+    .then(data => setFaculty(data));
+}, []);
+
+const columns = [
+  { key: "name", label: "Name" },
+  { key: "empNumber", label: "Employee Number" },
+  { key: "department", label: "Department" }
+];
+```
+Also change the titles to "Faculty List" and "Total Faculty", use `{faculty.length}`, pass `data={faculty}` to `DataTable`, and name the component `FacultyList`.
+
+## 7. Run it (two terminals)
+
+Both must be in the project folder (the prompt ends with `...\Surname_ATLAS>`). If it doesn't, run `cd Surname_ATLAS` first.
+
+| Terminal | Command |
+|---|---|
+| 1 (frontend) | `npm run dev` |
+| 2 (backend) | `node backend/server.js` |
+
+Restart the backend (Ctrl+C, then run it again) after any change to `server.js` or `.env`.
+
+## 8. Checks
+- Terminal 2 should print `Server running on port 5000` and `MongoDB Connected`.
+- `http://localhost:5000/api/students` and `http://localhost:5000/api/faculty` should show JSON.
+- `/`, `/students`, and `/faculties` should all work in the browser.
+
+## 9. Error quick-fix
+
+| Error | Fix |
+|---|---|
+| `Cannot find module ...server.js` | Wrong folder, so `cd Surname_ATLAS` |
+| `uri must be a string, got undefined` | `.env` is empty, unsaved, or in the wrong place (`injected env (0)` means empty) |
+| `querySrv ECONNREFUSED` | Keep the `dns.setServers` line, or switch to a phone hotspot |
+| `authentication failed` | Wrong username or password in `.env` |
+| Timeout | Add `0.0.0.0/0` in Network Access and wait a minute |
+| Table shows 0 | Backend isn't running, or collections are empty or misnamed |
+| Gradient heading is invisible | `bg-clip-text` is misspelled |
+| Styles missing | Tailwind plugin not in `vite.config.js`, or `index.css` not imported |
+
+## 10. Before submitting
+- Rename the folder and app to `YourSurname_ATLAS`.
+- Keep `.env` and `backend/.env` in `.gitignore`.
+- Reset your Atlas password after the lab.
+
+I can also turn this into a downloadable file if you'd rather save it than copy it from here.
